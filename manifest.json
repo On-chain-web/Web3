@@ -1,0 +1,21 @@
+{
+"name": "Binance-style Exchange",
+"short_name": "Binance App",
+"start_url": ".",
+"display": "standalone",
+"background_color": "#121415",
+"theme_color": "#f0b90b",
+"description": "A crypto exchange web application styled like Binance mobile app.",
+"icons": [
+{
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgcng9IjEwMCIgcnk9IjEwMCIgZmlsbD0iI2YwYjkwYiIvPjxwYXRoIGQ9Ik0xMDAgMTM1TDEyNSAxNTVMMTUwIDEzNUwxNTAgMTAwTDEyNSA4MEwxMDAgMTAwTDEwMCAxMzVaIE03NSAxMzVMMTAwIDE1NUwxMjUgMTM1TDEyNSAxMDBMMTAwIDgwTDc1IDEwMEw3NSAxMzVaIiBmaWxsPSIjMTIxNDE1Ii8+PC9zdmc+",
+"sizes": "192x192",
+"type": "image/svg+xml"
+},
+{
+"src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgcng9IjEwMCIgcnk9IjEwMCIgZmlsbD0iI2YwYjkwYiIvPjxwYXRoIGQ9Ik0xMDAgMTM1TDEyNSAxNTVMMTUwIDEzNUwxNTAgMTAwTDEyNSA4MEwxMDAgMTAwTDEwMCAxMzVaIE03NSAxMzVMMTAwIDE1NUwxMjUgMTM1TDEyNSAxMDBMMTAwIDgwTDc1IDEwMEw3NSAxMzVaIiBmaWxsPSIjMTIxNDE1Ii8+PC9zdmc+",
+"sizes": "512x512",
+"type": "image/svg+xml"
+}
+]
+}

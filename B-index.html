@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance-style Exchange</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121415;
+            color: #d1d1d1;
+        }
+
+        .text-binance-green {
+            color: #26a69a;
+        }
+
+        .text-binance-red {
+            color: #ef5350;
+        }
+
+        .bg-binance-dark {
+            background-color: #121415;
+        }
+
+        .bg-binance-card {
+            background-color: #2b3034;
+        }
+
+        .bg-binance-light {
+            background-color: #35393c;
+        }
+        
+        .btn-primary {
+            background-color: #f0b90b;
+            color: #121415;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            transition-property: all;
+            transition-duration: 300ms;
+        }
+
+        .btn-primary:hover {
+            background-color: #fcd535;
+        }
+
+        .btn-secondary {
+            background-color: #2b3034;
+            color: #f0b90b;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: 1px solid #f0b90b;
+        }
+        
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition-property: all;
+            transition-duration: 300ms;
+        }
+        
+        .tab-btn.active {
+            background-color: #f0b90b;
+            color: #121415;
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .page-hidden {
+            display: none !important;
+        }
+
+        .input-text {
+            background-color: #35393c;
+            border: 1px solid #4a4a4a;
+            color: #d1d1d1;
+        }
+
+        .list-item-coin {
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .list-item-coin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .header-icon {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        #walletModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #walletModal > div {
+            background: #1f2937;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        #walletModal button {
+            background:#f0b90b;
+            color:#0B0E11;
+            padding:10px 20px;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+        }
+
+        #walletModal button.cancel-btn {
+            background: #374151;
+            color: white;
+            padding: 8px 16px;
+        }
+
+        #manualInput input {
+            padding: 10px;
+            width: 90%;
+            border-radius: 5px;
+        }
+
+        .tradingview-widget-container {
+            height: 500px;
+        }
+
+        .assets-list-header {
+            font-size: 0.8rem;
+            color: #7d7d7d;
+        }
+    </style>
+</head>
+<body class="bg-binance-dark text-white flex flex-col items-center justify-center min-h-screen">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-binance-dark z-50 flex flex-col items-center justify-center hidden">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p id="loading-text" class="mt-4 text-xl">Connecting...</p>
+    </div>
+
+    <!-- Message Box (Alerts) -->
+    <div id="message-box" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-binance-card p-6 rounded-lg shadow-xl w-80 text-center">
+            <p id="message-box-text" class="text-white mb-4">This is a message.</p>
+            <button id="message-box-ok" class="btn-primary w-full">OK</button>
+        </div>
+    </div>
+
+    <!-- Wallet Connection Modal -->
+    <div id="walletModal" class="flex flex-col items-center justify-center hidden">
+        <div class="bg-binance-card p-6 rounded-lg shadow-xl text-center max-w-sm">
+            <h2 class="text-xl font-bold mb-4">Connect Wallet</h2>
+            <p class="text-sm text-binance-secondary mb-4">BNB Smart Chain BEP20 Network</p>
+            <button id="manual-connect-btn" class="btn-primary w-full mb-2">Manual</button>
+            <button id="automatic-connect-btn" class="btn-primary w-full mb-4">Automatic</button>
+            <div id="manualInput" class="hidden mt-4">
+                <input type="text" id="manualAddress" class="input-text w-full p-2 rounded-lg mb-2" placeholder="Enter your BNB Smart Chain address...">
+                <button id="confirm-manual-btn" class="btn-primary w-full">Confirm</button>
+            </div>
+            <button id="close-wallet-modal-btn" class="btn-secondary w-full mt-4">Cancel</button>
+        </div>
+    </div>
+    
+    <!-- PWA Install Prompt Modal -->
+    <div id="pwa-prompt-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-binance-card p-6 rounded-lg shadow-xl w-80 text-center">
+            <h3 class="text-lg font-bold mb-2">Install App</h3>
+            <p class="text-white mb-4">Add this app to your home screen for quick access.</p>
+            <div class="flex justify-around">
+                <button id="pwa-install-btn" class="btn-primary px-6 py-2">Install</button>
+                <button id="pwa-cancel-btn" class="btn-secondary px-6 py-2">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full App Container -->
+    <div id="app-container" class="w-full max-w-lg mx-auto p-4 md:p-8 rounded-lg shadow-lg">
+
+        <!-- Landing Page -->
+        <div id="landing-page" class="flex flex-col items-center justify-center min-h-screen -mt-8">
+            <div class="relative w-24 h-24 mb-6">
+                <!-- Base64 Logo -->
+                <img src="data:image/png;base64,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aGlnaGxpZ2h0XCI6MTAwLFwibGlnaHRiYWxhbmNlXCI6MSxcInNoYXJwbmVzc1wiOjEwMCxcImRlZmluaXRpb25cIjoxMDAsXCJpc0JyaWdodG5lc3NJUEVcIjpmYWxzZSxcImlzRXhwb3N1cmVJUEVcIjpmYWxzZSxcImlzQ29udHJhc3RJUEVcIjpmYWxzZSxcImlzU2F0dXJhdGlvbklQRVwiOmZhbHNlfSIsImVmZmVjdFZhbHVlIjoie1wiZmlsdGVySW5kaWNhdGlvblwiOjQxNzAsXCJhbHBoYVZhbHVlXCI6MTAwLFwiZmlsdGVyVHlwZVwiOjB9IiwicG9ydHJhaXRFZmZlY3RWYWx1ZSI6IntcImVmZmVjdElkXCI6LTEsXCJlZmZlY3RMZXZlbFwiOi0xLFwiZXhpZlJvdGF0aW9uXCI6MCxcImxpZ2h0TGV2ZWxcIjowLFwidG91Y2hYXCI6MCxcInRvdWNoWVwiOjAsXCJyZWZvY3VzWFwiOi0xLFwicmVmb2N1c1lcIjotMSxcImVmZmVjdElkT3JpZ2luYWxcIjotMSxcImVmZmVjdExldmVsT3JpZ2luYWxcIjotMSxcImxpZ2h0TGV2ZWxPcmlnaW5hbFwiOi0xLFwidG91Y2hYT3JpZ2luYWxcIjowLFwidG91Y2hZT3JpZ2luYWxcIjowLFwicmVmb2N1c1hPcmlnaW5hbFwiOi0xLFwicmVmb2N1c1lPcmlnaW5hbFwiOi0xLFwid2F0ZXJNYXJrUmVtb3ZlZFwiOmZhbHNlLFwid2F0ZXJNYXJrUmVtb3ZlZE9yaWdpbmFsXCI6ZmFsc2V9IiwiaXNCbGVuZGluZyI6ZmFsc2UsImlzTm90UmVFZGl0Ijp0cnVlLCJzZXBWZXJzaW9uIjoiMTYwMDAwIiwibmRlVmVyc2lvbiI6MSwicmVTaXplIjo0LCJpc1NjYWxlQUkiOmZhbHNlLCJyb3RhdGlvbiI6MSwiYWRqdXN0bWVudFZhbHVlIjoie1wibUNyb3BTdGF0ZVwiOjEzMTA3Nn0iLCJpc0FwcGx5U2hhcGVDb3JyZWN0aW9uIjpmYWxzZSwiaXNOZXdSZUVkaXRPbmx5IjpmYWxzZSwiaXNEZWNvUmVFZGl0T25seSI6ZmFsc2UsImlzQUlGaWx0ZXJSZUVkaXRPbmx5Ijp0cnVlfQAAogsYAAAAQ29weV9BdmFpbGFibGVfRWRpdF9JbmZveyJvcmlnaW5hbFBhdGgiOiJcL2RhdGFcL3NlY1wvcGhvdG9lZGl0b3JcLzBcLzA2Y2JmZWM5ZjUwOTU2ZDE3YzNjZjAwOGI4NjYxNTllYzlmNTg1YWUyNzRmYWZjMGM2NDA4NzczYjY2NTgwNTlfMTQ5My5wbmciLCJyZXByZXNlbnRhdGl2ZUZyYW1lTG9jIjotMSwic3RhcnRNb3Rpb25WaWRlbyI6LTEsImVuZE1vdGlvblZpZGVvIjotMSwiaXNNb3Rpb25WaWRlb011dGUiOmZhbHNlLCJpc1RyaW1Nb3Rpb25WaWRlbyI6ZmFsc2UsImNsaXBJbmZvVmFsdWUiOiJ7XCJtQ2VudGVyWFwiOjAuNSxcIm1DZW50ZXJZXCI6MC41LFwibVdpZHRoXCI6MSxcIm1IZWlnaHRcIjoxLFwibVJvdGF0aW9uXCI6MCxcIm1Sb3RhdGVcIjowLFwibUhGbGlwXCI6MCxcIm1WRmxpcFwiOjAsXCJtUm90YXRpb25FZmZlY3RcIjowLFwibVJvdGF0ZUVmZmVjdFwiOjAsXCJtSEZsaXBFZmZlY3RcIjowLFwibVZGbGlwRWZmZWN0XCI6MCxcIm1Ib3pQZXJzcGVjdGl2ZVwiOjAsXCJtVmVyUGVyc3BlY3RpdmVcIjowfSIsInRvbmVWYWx1ZSI6IntcImJyaWdodG5lc3NcIjoxMDAsXCJleHBvc3VyZVwiOjEwMCxcImNvbnRyYXN0XCI6MTAwLFwic2F0dXJhdGlvblwiOjEwMCxcImh1ZVwiOjEwMCxcIndiTW9kZVwiOi0xLFwid2JUZW1wZXJhdHVyZVwiOjEwMCxcInRpbnRcIjoxMDAsXCJzaGFkb3dcIjoxMDAsXCJoaWdobGlnaHRcIjoxMDAsXCJsaWdodGJhbGFuY2VcIjoxLFwic2hhcnBuZXNzXCI6MTAwLFwiZGVmaW5pdGlvblwiOjEwMCxcImlzQnJpZ2h0bmVzc0lQRVwiOmZhbHNlLFwiaXNFeHBvc3VyZUlQRVwiOmZhbHNlLFwiaXNDb250cmFzdElQRVwiOmZhbHNlLFwiaXNTYXR1cmF0aW9uSVBFXCI6ZmFsc2V9IiwiZWZmZWN0VmFsdWUiOiJ7XCJmaWx0ZXJJbmRpY2F0aW9uXCI6NDE3MCxcImFscGhhVmFsdWVcIjoxMDAsXCJmaWx0ZXJUeXBlXCI6MH0iLCJwb3J0cmFpdEVmZmVjdFZhbHVlIjoie1wiZWZmZWN0SWRcIjotMSxcImVmZmVjdExldmVsXCI6LTEsXCJleGlmUm90YXRpb25cIjowLFwibGlnaHRMZXZlbFwiOjAsXCJ0b3VjaFhcIjowLFwidG91Y2hZXCI6MCxcInJlZm9jdXNYXCI6LTEsXCJyZWZvY3VzWVwiOi0xLFwiZWZmZWN0SWRPcmlnaW5hbFwiOi0xLFwiZWZmZWN0TGV2ZWxPcmlnaW5hbFwiOi0xLFwibGlnaHRMZXZlbE9yaWdpbmFsXCI6LTEsXCJ0b3VjaFhPcmlnaW5hbFwiOjAsXCJ0b3VjaFlPcmlnaW5hbFwiOjAsXCJyZWZvY3VzWE9yaWdpbmFsXCI6LTEsXCJyZWZvY3VzWU9yaWdpbmFsXCI6LTEsXCJ3YXRlck1hcmtSZW1vdmVkXCI6ZmFsc2UsXCJ3YXRlck1hcmtSZW1vdmVkT3JpZ2luYWxcIjpmYWxzZX0iLCJpc0JsZW5kaW5nIjpmYWxzZSwiaXNOb3RSZUVkaXQiOnRydWUsInNlcFZlcnNpb24iOiIxNjAwMDAiLCJuZGVWZXJzaW9uIjoxLCJyZVNpemUiOjQsImlzU2NhbGVBSSI6ZmFsc2UsInJvdGF0aW9uIjoxLCJhZGp1c3RtZW50VmFsdWUiOiJ7XCJtQ3JvcFN0YXRlXCI6MTMxMDc2fSIsImlzQXBwbHlTaGFwZUNvcnJlY3Rpb24iOmZhbHNlLCJpc05ld1JlRWRpdE9ubHkiOmZhbHNlLCJpc0RlY29SZUVkaXRPbmx5IjpmYWxzZSwiaXNBSUZpbHRlclJlRWRpdE9ubHkiOnRydWV9AAChCxYAAABPcmlnaW5hbF9QYXRoX0hhc2hfS2V5MWQ3NzgxYjgzODA3YzViZDZhNmUzY2Q3MmE4ODUyZDQ2YTViYTQ4YmI0MWM1NzhmYjY5OGI5ZjlkZGM3ZDE4ZS8xNDkzU0VGSGsAAAADAAAAAAChC/EMAABHBgAAAACiC6oGAABHBgAAAAChC2MAAABjAAAAMAAAAFNFRlQ=" alt="Binance Logo" class="w-full h-full object-contain filter drop-shadow-[0_4px_8px_rgba(255,255,255,0.1)]">
+            </div>
+            <h1 class="text-4xl font-extrabold text-white mb-2 tracking-wide">Binance</h1>
+            <p class="text-xl text-gray-400 mb-8 text-center px-4 max-w-sm">The world's leading crypto exchange</p>
+
+            <div class="w-full space-y-4 px-4 max-w-sm">
+                <button id="cta-connect-wallet-btn" class="btn-primary w-full text-lg">Connect Wallet</button>
+                <button id="get-app-btn" class="btn-secondary w-full text-lg">GET APP</button>
+            </div>
+            <p class="text-xs text-gray-500 mt-8">By connecting, you agree to the Terms of Service.</p>
+        </div>
+
+        <!-- Main App Container -->
+        <div id="main-app-container" class="page-hidden">
+            <!-- App Header -->
+            <header class="flex items-center justify-between p-4 bg-binance-card rounded-t-lg mb-4">
+                <div class="flex items-center space-x-2">
+                    <span id="short-wallet-address" class="text-sm">...</span>
+                    <button id="wallet-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 12a5 5 0 0 0-10 0v5h10v-5z"/><path d="M12 21a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
+                    </button>
+                </div>
+                <div class="flex space-x-4">
+                    <button id="search-btn-app" class="header-icon" title="Search">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 19L14 14M15 9a6 6 0 1 1-12 0a6 6 0 0 1 12 0Z"/></svg>
+                    </button>
+                    <button id="send-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 2L11 6M22 2L18 6"/><path d="M2 22L13 11M2 22L9 22L13 18M2 22L6 18"/></svg>
+                    </button>
+                    <button id="notifications-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 0 0-3 3v2a3 3 0 0 0 3 3h2a3 3 0 0 0 3-3v-2a3 3 0 0 0-3-3h-2zM6 8a3 3 0 0 0-3 3v2a3 3 0 0 0 3 3h2a3 3 0 0 0 3-3v-2a3 3 0 0 0-3-3H6z"/></svg>
+                    </button>
+                    <button id="settings-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 1 0 0-16a8 8 0 0 0 0 16z"/><path d="M12 14a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
+                    </button>
+                    <button id="disconnect-btn" class="header-icon" title="Disconnect">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17a3 3 0 1 0 0-6M12 20a8 8 0 1 0 0-16a8 8 0 0 0 0 16zM14 14a2 2 0 1 0 0-4a2 2 0 0 0 0 4z"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <div id="main-content">
+                <!-- Homepage -->
+                <div id="homepage" class="page">
+                    <section class="mb-6">
+                        <h2 class="text-xl font-bold mb-2">Your Balance</h2>
+                        <div class="flex items-center justify-between bg-binance-card p-4 rounded-lg">
+                            <div>
+                                <p class="text-sm text-binance-secondary">Estimated Value</p>
+                                <p class="text-2xl font-bold mt-1">$4,862.53</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="deposit-btn" class="btn-primary">Deposit</button>
+                                <button id="withdraw-btn" class="btn-secondary">Withdraw</button>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <section class="mb-6">
+                        <h2 class="text-xl font-bold mb-2">Market Overview</h2>
+                        <div id="market-overview-data" class="bg-binance-card p-4 rounded-lg flex justify-around">
+                            <!-- Market data will be dynamically loaded here -->
+                        </div>
+                    </section>
+
+                    <section class="mb-6">
+                        <h2 class="text-xl font-bold mb-2">Hot Assets</h2>
+                        <div class="bg-binance-card p-4 rounded-lg">
+                            <ul id="hot-assets-list">
+                                <!-- Hot assets will be dynamically loaded here -->
+                            </ul>
+                        </div>
+                    </section>
+                    
+                    <section class="mb-6">
+                        <h2 class="text-xl font-bold mb-2">Trending Coins</h2>
+                        <div class="bg-binance-card p-4 rounded-lg">
+                            <ul id="trending-coins-list">
+                                <!-- Trending coins will be dynamically loaded here -->
+                            </ul>
+                        </div>
+                    </section>
+                    
+                    <section class="mb-6">
+                        <h2 class="text-xl font-bold mb-2">Futures & Spot</h2>
+                        <div class="flex space-x-4">
+                            <button id="nav-trade-btn-homepage" class="btn-primary flex-1">Trade</button>
+                            <button id="nav-futures-btn-homepage" class="btn-secondary flex-1">Futures</button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Wallet Details Page -->
+                <div id="wallet-details-page" class="page page-hidden">
+                    <button id="wallet-details-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Wallet Details</h2>
+                    <div class="bg-binance-card p-6 rounded-lg">
+                        <p class="text-sm text-binance-secondary">Connected Wallet Address:</p>
+                        <p id="full-wallet-address" class="break-words font-mono mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Deposit Page -->
+                <div id="deposit-page" class="page page-hidden">
+                    <button id="deposit-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Deposit Crypto</h2>
+                    
+                    <!-- Step 1: Select Coin -->
+                    <div id="deposit-step-1" class="page">
+                        <h3 class="text-xl font-bold mb-4">Select Asset</h3>
+                        <input type="text" id="deposit-search-input" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Search for a coin">
+                        <div id="deposit-coin-list" class="space-y-2 overflow-y-auto max-h-80">
+                            <!-- Coin buttons will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Select Network -->
+                    <div id="deposit-step-2" class="page-hidden">
+                        <button id="deposit-step-2-back-btn" class="text-white mb-4">&larr; Back</button>
+                        <h3 class="text-xl font-bold mb-4">Select Network</h3>
+                        <p id="selected-coin-info" class="text-binance-secondary mb-4"></p>
+                        <div id="deposit-network-list" class="space-y-2">
+                            <!-- Network buttons will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Deposit Address & QR -->
+                    <div id="deposit-step-3" class="page-hidden text-center">
+                        <button id="deposit-step-3-back-btn" class="text-white mb-4">&larr; Back</button>
+                        <h3 class="text-xl font-bold mb-4">Deposit Address</h3>
+                        <p class="text-binance-secondary mb-2">Send <span id="deposit-coin-name-display" class="font-bold"></span> via <span id="deposit-network-name-display" class="font-bold"></span> network</p>
+                        <canvas id="deposit-qr-canvas" class="mx-auto rounded-lg mb-4"></canvas>
+                        
+                        <div class="bg-binance-card p-4 rounded-lg mb-4">
+                            <p id="deposit-address-display" class="break-words font-mono text-sm"></p>
+                        </div>
+                        <p class="text-sm text-binance-red mb-4">Only send <span id="coin-warning" class="font-bold"></span> to this deposit address. Sending other assets will result in loss.</p>
+                        <button id="copy-address-btn" class="btn-primary w-full">Copy Address</button>
+                    </div>
+                </div>
+
+                <!-- Withdraw Page -->
+                <div id="withdraw-page" class="page page-hidden">
+                    <button id="withdraw-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Withdraw Crypto</h2>
+                    
+                    <!-- Step 1: Withdraw Form -->
+                    <div id="withdraw-step-1" class="page">
+                        <label for="withdraw-coin" class="text-sm text-binance-secondary">Select Coin</label>
+                        <select id="withdraw-coin" class="w-full p-2 rounded-lg bg-binance-card mb-4">
+                            <option>Bitcoin (BTC)</option>
+                            <option>Ethereum (ETH)</option>
+                            <option>BNB (BNB)</option>
+                        </select>
+                        
+                        <label for="withdraw-address" class="text-sm text-binance-secondary">Recipient Address</label>
+                        <input type="text" id="withdraw-address" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Enter wallet address">
+
+                        <label for="withdraw-amount" class="text-sm text-binance-secondary">Amount</label>
+                        <input type="number" id="withdraw-amount" class="input-text w-full p-2 rounded-lg mb-4" placeholder="0.00">
+                        
+                        <button id="confirm-withdraw-btn" class="btn-primary w-full">Confirm Withdraw</button>
+                    </div>
+
+                    <!-- Step 2: Confirmation -->
+                    <div id="withdraw-confirmation-page" class="page-hidden text-center">
+                        <h3 class="text-xl font-bold mb-4">Confirm Withdrawal</h3>
+                        <div class="bg-binance-card p-4 rounded-lg mb-4">
+                            <p class="text-sm text-binance-secondary">Coin: <span id="confirm-coin" class="font-bold">BTC</span></p>
+                            <p class="text-sm text-binance-secondary">Address: <span id="confirm-address" class="break-words font-mono">...</span></p>
+                            <p class="text-sm text-binance-secondary">Amount: <span id="confirm-amount" class="font-bold"></span></p>
+                        </div>
+                        <button id="submit-tx-btn" class="btn-primary w-full">Submit Transaction</button>
+                    </div>
+                    
+                    <!-- Step 3: Processing -->
+                    <div id="withdraw-processing-page" class="page-hidden text-center">
+                        <svg class="animate-spin h-10 w-10 text-yellow-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-4">Processing withdrawal...</p>
+                    </div>
+                    
+                    <!-- Step 4: Success -->
+                    <div id="withdraw-success-page" class="page-hidden text-center">
+                        <svg class="h-16 w-16 mx-auto text-binance-green" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        <h3 class="text-xl font-bold mt-4">Withdrawal Successful!</h3>
+                        <p class="text-binance-secondary mt-2">Your funds have been sent.</p>
+                        <button id="back-to-home-btn" class="btn-primary w-full mt-4">Back to Home</button>
+                    </div>
+                </div>
+
+                <!-- Other Pages (e.g., Trade, Markets, etc.) - Initially hidden -->
+                <div id="markets-page" class="page page-hidden">
+                    <button id="markets-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Markets</h2>
+                    <input type="text" id="markets-search-input" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Search for a coin">
+                    <div id="markets-coin-list" class="space-y-2 overflow-y-auto max-h-80">
+                         <!-- Market coins will be dynamically loaded here -->
+                    </div>
+                </div>
+                
+                <div id="trade-page" class="page page-hidden">
+                    <button id="trade-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Trade BTC/USDT</h2>
+                    <div class="tradingview-widget-container rounded-lg overflow-hidden mb-4">
+                        <iframe src="https://www.tradingview.com/widgetembed/?symbol=BINANCE%3ABTCUSDT&amp;interval=D&amp;theme=dark&amp;style=1&amp;locale=en&amp;toolbar_bg=%23f1f3f6&amp;enable_publishing=false&amp;withdateranges=true&amp;hide_side_toolbar=false&amp;allow_symbol_change=true" style="width: 100%; height: 100%;" frameborder="0" allowfullscreen=""></iframe>
+                    </div>
+                    <div class="bg-binance-card p-4 rounded-lg">
+                        <div class="flex space-x-2 mb-4">
+                            <button class="tab-btn active" id="trade-buy-btn">Buy</button>
+                            <button class="tab-btn" id="trade-sell-btn">Sell</button>
+                        </div>
+                        <div id="trade-buy-content">
+                            <label for="buy-amount" class="text-sm text-binance-secondary">Amount (BTC)</label>
+                            <input type="number" id="buy-amount" class="input-text w-full p-2 rounded-lg mb-2" placeholder="0.00">
+                            <label for="buy-price" class="text-sm text-binance-secondary">Price (USDT)</label>
+                            <input type="number" id="buy-price" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Market Price">
+                            <button class="btn-primary w-full">Buy BTC</button>
+                        </div>
+                        <div id="trade-sell-content" class="page-hidden">
+                            <label for="sell-amount" class="text-sm text-binance-secondary">Amount (BTC)</label>
+                            <input type="number" id="sell-amount" class="input-text w-full p-2 rounded-lg mb-2" placeholder="0.00">
+                            <label for="sell-price" class="text-sm text-binance-secondary">Price (USDT)</label>
+                            <input type="number" id="sell-price" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Market Price">
+                            <button class="bg-red-500 text-white font-bold py-3 rounded-lg w-full">Sell BTC</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="futures-page" class="page page-hidden">
+                    <button id="futures-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Futures Trading</h2>
+                    <div class="bg-binance-card p-4 rounded-lg mb-4">
+                        <p class="text-sm font-bold">Perpetual Futures BTC/USDT</p>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-lg font-bold text-binance-green">$26,543.21</span>
+                            <span class="text-sm text-binance-green">+1.54%</span>
+                        </div>
+                    </div>
+                    <div class="bg-binance-card p-4 rounded-lg mb-4">
+                        <div class="flex justify-around mb-4">
+                            <button class="tab-btn active" id="futures-long-btn">Long</button>
+                            <button class="tab-btn" id="futures-short-btn">Short</button>
+                        </div>
+                        <label for="leverage-input" class="text-sm text-binance-secondary">Leverage (1-10x)</label>
+                        <input type="range" min="1" max="10" value="3" class="w-full h-2 bg-yellow-100 rounded-lg appearance-none cursor-pointer mb-4" id="leverage-input">
+                        <div class="flex justify-between text-sm mb-4">
+                            <span>1x</span><span>5x</span><span>10x</span>
+                        </div>
+                        <button class="btn-primary w-full">Open Long Position</button>
+                    </div>
+                </div>
+
+                <div id="assets-page" class="page page-hidden">
+                    <button id="assets-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <div class="p-6 bg-binance-card rounded-xl">
+                        <h2 class="text-2xl font-bold mb-1">Total Balance</h2>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-4xl font-extrabold">$8,454.12</span>
+                            <span class="text-lg text-binance-green">+0.15%</span>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-6">
+                            <button id="spot-tab" class="flex-1 text-center py-2 text-yellow-500 border-b-2 border-yellow-500">Spot</button>
+                            <button id="funding-tab" class="flex-1 text-center py-2 text-gray-500">Funding</button>
+                            <button id="margin-tab" class="flex-1 text-center py-2 text-gray-500">Margin</button>
+                        </div>
+
+                        <input type="text" id="assets-search-input" class="input-text w-full p-2 rounded-lg my-4" placeholder="Search for a coin">
+
+                        <div class="grid grid-cols-3 gap-x-2 text-sm assets-list-header text-gray-400 mb-2">
+                            <div>Coin</div>
+                            <div class="text-right">Balance</div>
+                            <div class="text-right">Value</div>
+                        </div>
+                        <div id="assets-list" class="space-y-4">
+                            <!-- Asset data will be dynamically loaded here -->
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-4 mt-6">
+                        <button id="assets-deposit-btn" class="flex flex-col items-center p-2 rounded-lg bg-binance-card">
+                            <svg class="h-6 w-6 text-yellow-500 mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8a1 1 0 112 0v4a1 1 0 11-2 0v-4zm-1-3a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
+                            <span class="text-sm">Deposit</span>
+                        </button>
+                        <button id="assets-withdraw-btn" class="flex flex-col items-center p-2 rounded-lg bg-binance-card">
+                            <svg class="h-6 w-6 text-yellow-500 mb-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1 9a1 1 0 112 0v4a1 1 0 11-2 0v-4zm1-8a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd"></path></svg>
+                            <span class="text-sm">Withdraw</span>
+                        </button>
+                        <button id="assets-transfer-btn" class="flex flex-col items-center p-2 rounded-lg bg-binance-card">
+                            <svg class="h-6 w-6 text-yellow-500 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12l-5-5-1.5 1.5L10 15l6.5-6.5L15 7z"/></svg>
+                            <span class="text-sm">Transfer</span>
+                        </button>
+                        <button id="assets-convert-btn" class="flex flex-col items-center p-2 rounded-lg bg-binance-card">
+                            <svg class="h-6 w-6 text-yellow-500 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12l-5-5-1.5 1.5L10 15l6.5-6.5L15 7z"/></svg>
+                            <span class="text-sm">Convert</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Transfer Page -->
+                <div id="transfer-page" class="page page-hidden">
+                    <button id="transfer-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Transfer</h2>
+                    
+                    <div class="bg-binance-card p-6 rounded-xl space-y-4">
+                        <div class="flex justify-between items-center relative">
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-400 mb-1">From</p>
+                                <select id="transfer-from-account" class="w-full p-2 rounded-lg bg-binance-light text-white">
+                                    <option value="spot">Spot</option>
+                                    <option value="funding">Funding</option>
+                                    <option value="margin">Margin</option>
+                                </select>
+                            </div>
+                            <button id="transfer-swap-btn" class="absolute left-1/2 -translate-x-1/2 -top-1 z-10 p-2 rounded-full bg-binance-light border border-gray-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m-4-4l4 4 4-4"/></svg>
+                            </button>
+                            <div class="flex-1 ml-6">
+                                <p class="text-sm text-gray-400 mb-1">To</p>
+                                <select id="transfer-to-account" class="w-full p-2 rounded-lg bg-binance-light text-white">
+                                    <option value="funding">Funding</option>
+                                    <option value="spot">Spot</option>
+                                    <option value="margin">Margin</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="text-sm text-gray-400 mb-1">Coin</p>
+                            <button id="transfer-coin-select-btn" class="w-full text-left p-3 rounded-lg bg-binance-light flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <img src="https://assets.coingecko.com/coins/images/1/small/bitcoin.png" alt="Bitcoin" class="w-6 h-6 rounded-full">
+                                    <span class="font-bold">BTC</span>
+                                </div>
+                                <span class="text-gray-400">Bitcoin</span>
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm text-gray-400 mb-1">Amount</p>
+                            <div class="relative">
+                                <input type="number" id="transfer-amount" class="input-text w-full p-3 pr-16 rounded-lg" placeholder="0.00">
+                                <button id="transfer-max-btn" class="absolute right-4 top-1/2 -translate-y-1/2 text-yellow-500 font-bold">Max</button>
+                            </div>
+                        </div>
+
+                        <button id="transfer-confirm-btn" class="btn-primary w-full mt-4">Confirm Transfer</button>
+                    </div>
+                </div>
+
+                <!-- Funding Page -->
+                <div id="funding-page" class="page page-hidden">
+                    <button id="funding-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Funding Account</h2>
+                    <div class="p-6 bg-binance-card rounded-xl">
+                        <h3 class="text-lg text-gray-400">Total Balance</h3>
+                        <p class="text-3xl font-bold mt-1">$0.00</p>
+                        <p class="text-sm text-gray-500 mt-2">The funding account is used for paying fees, P2P trading, and other services.</p>
+                        <div class="flex space-x-2 mt-4">
+                            <button class="btn-primary flex-1">Transfer In</button>
+                            <button class="btn-secondary flex-1">Transfer Out</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Margin Page -->
+                <div id="margin-page" class="page page-hidden">
+                    <button id="margin-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Margin Account</h2>
+                    <div class="p-6 bg-binance-card rounded-xl">
+                        <h3 class="text-lg text-gray-400">Total Balance</h3>
+                        <p class="text-3xl font-bold mt-1">$0.00</p>
+                        <p class="text-sm text-gray-500 mt-2">Margin trading allows you to borrow funds to amplify your trading results.</p>
+                        <div class="flex space-x-2 mt-4">
+                            <button class="btn-primary flex-1">Transfer</button>
+                            <button class="btn-secondary flex-1">Borrow</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Convert Page -->
+                <div id="convert-page" class="page page-hidden">
+                    <button id="convert-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Convert</h2>
+                    <div class="bg-binance-card p-6 rounded-xl space-y-4">
+                        <div class="flex flex-col">
+                            <label for="convert-from" class="text-sm text-gray-400">From</label>
+                            <input type="text" id="convert-from" class="input-text w-full p-2 rounded-lg mt-1" placeholder="Enter amount">
+                            <div class="flex justify-end mt-2">
+                                <span class="text-sm text-yellow-500">Max</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-center items-center">
+                            <svg class="h-8 w-8 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14m-4-4l4 4 4-4"/></svg>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="convert-to" class="text-sm text-gray-400">To</label>
+                            <input type="text" id="convert-to" class="input-text w-full p-2 rounded-lg mt-1" placeholder="Enter amount">
+                        </div>
+                        <button class="btn-primary w-full">Convert</button>
+                    </div>
+                </div>
+                
+                <div id="send-page" class="page page-hidden">
+                    <button id="send-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Send Crypto</h2>
+                    <div class="bg-binance-card p-4 rounded-lg">
+                        <label for="send-address" class="text-sm text-binance-secondary">Recipient Address</label>
+                        <input type="text" id="send-address" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Enter wallet address">
+                        
+                        <label for="send-coin" class="text-sm text-binance-secondary">Coin</label>
+                        <select id="send-coin" class="w-full p-2 rounded-lg bg-binance-card mb-4">
+                            <option>Bitcoin (BTC)</option>
+                            <option>Ethereum (ETH)</option>
+                            <option>BNB (BNB)</option>
+                        </select>
+                        
+                        <label for="send-network" class="text-sm text-binance-secondary">Network</label>
+                        <select id="send-network" class="w-full p-2 rounded-lg bg-binance-card mb-4">
+                            <option>ETH network</option>
+                            <option>BNB Smart Chain BEP20</option>
+                        </select>
+                        
+                        <label for="send-amount" class="text-sm text-binance-secondary">Amount</label>
+                        <input type="number" id="send-amount" class="input-text w-full p-2 rounded-lg mb-4" placeholder="0.00">
+                        
+                        <button class="btn-primary w-full">Review & Send</button>
+                    </div>
+                </div>
+                
+                <div id="settings-page" class="page page-hidden">
+                    <button id="settings-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Settings</h2>
+                    <div class="bg-binance-card p-4 rounded-lg space-y-4">
+                        <div class="flex justify-between items-center">
+                            <p class="text-lg">Dark Mode</p>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-yellow-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                            </label>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-lg">Price Alerts</p>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-yellow-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                            </label>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-lg">Language</p>
+                            <select class="p-2 rounded-lg bg-binance-light text-white">
+                                <option>English</option>
+                                <option>Spanish</option>
+                                <option>French</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="notifications-page" class="page page-hidden">
+                    <button id="notifications-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Notifications</h2>
+                    <div class="bg-binance-card p-4 rounded-lg">
+                        <div class="space-y-4">
+                            <div class="flex space-x-4 items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-yellow-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                                <div>
+                                    <p class="font-bold">Withdrawal Confirmed</p>
+                                    <p class="text-sm text-binance-secondary">Your withdrawal of 0.05 BTC is complete.</p>
+                                    <p class="text-xs text-gray-500 mt-1">2 hours ago</p>
+                                </div>
+                            </div>
+                            <div class="flex space-x-4 items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                <div>
+                                    <p class="font-bold">Deposit Received</p>
+                                    <p class="text-sm text-binance-secondary">A deposit of 1.25 ETH has been credited to your account.</p>
+                                    <p class="text-xs text-gray-500 mt-1">Yesterday</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="explore-page" class="page page-hidden">
+                    <button id="explore-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Explore</h2>
+                    <div class="bg-binance-card p-4 rounded-lg space-y-4">
+                        <div class="bg-binance-light p-4 rounded-lg flex items-center space-x-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            <div>
+                                <h3 class="font-bold">Binance Academy</h3>
+                                <p class="text-sm text-binance-secondary">Learn about crypto and blockchain for free.</p>
+                            </div>
+                        </div>
+                        <div class="bg-binance-light p-4 rounded-lg flex items-center space-x-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/></svg>
+                            <div>
+                                <h3 class="font-bold">Launchpad</h3>
+                                <p class="text-sm text-binance-secondary">Discover new and exciting projects on Binance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="search-page" class="page page-hidden">
+                    <button id="search-back-btn" class="text-white mb-4">&larr; Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-center">Search</h2>
+                    <input type="text" id="markets-search-input" class="input-text w-full p-2 rounded-lg mb-4" placeholder="Search for a coin">
+                    <div id="markets-coin-list" class="space-y-2 overflow-y-auto max-h-80">
+                         <!-- Search results will be dynamically loaded here -->
+                    </div>
+                </div>
+                
+            </div>
+
+            <!-- Bottom Navigation -->
+            <footer class="flex items-center justify-around p-4 mt-4 bg-binance-card rounded-b-lg">
+                <button id="nav-home-btn" class="flex flex-col items-center text-sm text-yellow-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L3 9h3v12h5v-7h2v7h5V9h3z"/></svg>
+                    <span>Home</span>
+                </button>
+                <button id="nav-markets-btn" class="flex flex-col items-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 12h4l4 4l4-4h4z"/><path d="M12 22a8 8 0 1 0 0-16a8 8 0 0 0 0 16z"/></svg>
+                    <span>Markets</span>
+                </button>
+                <button id="nav-trade-btn" class="flex flex-col items-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 2L11 6M22 2L18 6"/><path d="M2 22L13 11M2 22L9 22L13 18M2 22L6 18"/></svg>
+                    <span>Trade</span>
+                </button>
+                <button id="nav-futures-btn" class="flex flex-col items-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v.5a.5.5 0 0 1-1 0V12h-2v.5a.5.5 0 0 1-1 0V12a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1z"/></svg>
+                    <span>Futures</span>
+                </button>
+                <button id="nav-assets-btn" class="flex flex-col items-center text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2z"/><path d="M6 10v4M12 10v4M18 10v4"/></svg>
+                    <span>Assets</span>
+                </button>
+            </footer>
+        </div>
+    </div>
+    
+    <script>
+        const pages = document.querySelectorAll('#app-container > div');
+        const mainAppPages = document.querySelectorAll('#main-content > div');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const ctaConnectWalletBtn = document.getElementById('cta-connect-wallet-btn');
+        const getAppBtn = document.getElementById('get-app-btn');
+        const walletBtn = document.getElementById('wallet-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const depositBtn = document.getElementById('deposit-btn');
+        const withdrawBtn = document.getElementById('withdraw-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const notificationsBtn = document.getElementById('notifications-btn');
+        const searchBtnApp = document.getElementById('search-btn-app');
+        
+        const assetsDepositBtn = document.getElementById('assets-deposit-btn');
+        const assetsWithdrawBtn = document.getElementById('assets-withdraw-btn');
+        const assetsTransferBtn = document.getElementById('assets-transfer-btn');
+        const assetsConvertBtn = document.getElementById('assets-convert-btn');
+
+        const walletDetailsBackBtn = document.getElementById('wallet-details-back-btn');
+        const depositBackBtn = document.getElementById('deposit-back-btn');
+        const withdrawBackBtn = document.getElementById('withdraw-back-btn');
+        const sendBackBtn = document.getElementById('send-back-btn');
+        const settingsBackBtn = document.getElementById('settings-back-btn');
+        const notificationsBackBtn = document.getElementById('notifications-back-btn');
+        const exploreBackBtn = document.getElementById('explore-back-btn');
+        const searchBackBtn = document.getElementById('search-back-btn');
+
+        const navHomeBtn = document.getElementById('nav-home-btn');
+        const navMarketsBtn = document.getElementById('nav-markets-btn');
+        const navTradeBtn = document.getElementById('nav-trade-btn');
+        const navFuturesBtn = document.getElementById('nav-futures-btn');
+        const navAssetsBtn = document.getElementById('nav-assets-btn');
+        
+        const navTradeBtnHomepage = document.getElementById('nav-trade-btn-homepage');
+        const navFuturesBtnHomepage = document.getElementById('nav-futures-btn-homepage');
+
+        const marketsBackBtn = document.getElementById('markets-back-btn');
+        const tradeBackBtn = document.getElementById('trade-back-btn');
+        const futuresBackBtn = document.getElementById('futures-back-btn');
+        const assetsBackBtn = document.getElementById('assets-back-btn');
+        const fundingBackBtn = document.getElementById('funding-back-btn');
+        const marginBackBtn = document.getElementById('margin-back-btn');
+        const convertBackBtn = document.getElementById('convert-back-btn');
+        const transferBackBtn = document.getElementById('transfer-back-btn');
+
+        const walletModal = document.getElementById('walletModal');
+        const manualConnectBtn = document.getElementById('manual-connect-btn');
+        const automaticConnectBtn = document.getElementById('automatic-connect-btn');
+        const manualInput = document.getElementById('manualInput');
+        const confirmManualBtn = document.getElementById('confirm-manual-btn');
+        const closeWalletModalBtn = document.getElementById('close-wallet-modal-btn');
+        
+        const messageBox = document.getElementById('message-box');
+        const messageBoxText = document.getElementById('message-box-text');
+        const messageBoxOkBtn = document.getElementById('message-box-ok');
+        
+        const depositSearchInput = document.getElementById('deposit-search-input');
+        const depositCoinList = document.getElementById('deposit-coin-list');
+        const marketsSearchInput = document.getElementById('markets-search-input');
+        const marketsCoinList = document.getElementById('markets-coin-list');
+        
+        const tradeBuyBtn = document.getElementById('trade-buy-btn');
+        const tradeSellBtn = document.getElementById('trade-sell-btn');
+        const tradeBuyContent = document.getElementById('trade-buy-content');
+        const tradeSellContent = document.getElementById('trade-sell-content');
+
+        const transferFromAccount = document.getElementById('transfer-from-account');
+        const transferToAccount = document.getElementById('transfer-to-account');
+        const transferSwapBtn = document.getElementById('transfer-swap-btn');
+        const transferMaxBtn = document.getElementById('transfer-max-btn');
+        const transferConfirmBtn = document.getElementById('transfer-confirm-btn');
+        
+        let connectedWalletAddress = null;
+        let allCoins = [];
+        
+        let deferredPrompt = null; // Variable to store the install prompt event
+
+        // PWA logic
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Optionally, show a custom install button
+            getAppBtn.classList.remove('page-hidden');
+            console.log('beforeinstallprompt event fired');
+        });
+
+        getAppBtn.addEventListener('click', () => {
+            if (deferredPrompt) {
+                document.getElementById('pwa-prompt-modal').classList.remove('hidden');
+            } else {
+                showMessageBox("The 'install' feature is not supported on this browser or device. Please use your browser's menu to add to home screen.");
+            }
+        });
+        
+        document.getElementById('pwa-install-btn').addEventListener('click', () => {
+            document.getElementById('pwa-prompt-modal').classList.add('hidden');
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the A2HS prompt');
+                    } else {
+                        console.log('User dismissed the A2HS prompt');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        });
+        
+        document.getElementById('pwa-cancel-btn').addEventListener('click', () => {
+            document.getElementById('pwa-prompt-modal').classList.add('hidden');
+        });
+
+        const COIN_NETWORKS = {
+            'bitcoin': ['Bitcoin network'],
+            'ethereum': ['ETH network'],
+            'binancecoin': ['BNB Smart Chain BEP20'],
+            'solana': ['SOL Solana network'],
+            'tether': ['ETH network', 'BNB Smart Chain BEP20', 'Tron TRC 20 network'],
+            'usd-coin': ['ETH network', 'BNB Smart Chain BEP20'],
+            'tron': ['Tron TRC 20 network'],
+            'dogecoin': ['Dogecoin network'],
+            'cardano': ['Cardano network'],
+        };
+        
+        const DEPOSIT_ADDRESSES = {
+            'Bitcoin network': 'bc1qzhjzqpdras72yjjrsuldtn339kdglw5vgtup5w',
+            'ETH network': '0xFf5e8a2603e64b2950Ee8D0Af6AC86670bD5Db69',
+            'BNB Smart Chain BEP20': '0xFf5e8a2603e64b2950Ee8D0Af6AC86670bD5Db69',
+            'SOL Solana network': '2JGunfyXYkmHtXyvbdeQhcxynKCR4tymmYcQFN28vD2K',
+            'Tron TRC 20 network': 'TRiuuMdMP9pPwUq1bsYefC9t6U7BUJwwmq',
+            'Dogecoin network': 'DGUw39wY7rYvP9Qj6uGfC8m5sQj8R5wL8G',
+            'Cardano network': 'addr1v8w76gqf4h0c0x6f3e4c4c7j5k3p4h2n0m0l8j5g6s8e6f',
+        };
+
+        // Helper functions
+        function showMessageBox(message) {
+            messageBoxText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        function hideMessageBox() {
+            messageBox.classList.add('hidden');
+        }
+
+        function showPage(pageId) {
+            pages.forEach(page => page.classList.add('page-hidden'));
+            document.getElementById(pageId).classList.remove('page-hidden');
+        }
+        
+        function showMainAppPage(pageId) {
+            mainAppPages.forEach(page => page.classList.add('page-hidden'));
+            document.getElementById(pageId).classList.remove('page-hidden');
+        }
+
+        function truncateAddress(address) {
+            if (!address) return '';
+            const start = address.substring(0, 6);
+            const end = address.substring(address.length - 4);
+            return `${start}...${end}`;
+        }
+        
+        function updateWalletUI(address) {
+            const shortAddressEl = document.getElementById('short-wallet-address');
+            const fullAddressEl = document.getElementById('full-wallet-address');
+            if (shortAddressEl) shortAddressEl.textContent = truncateAddress(address);
+            if (fullAddressEl) fullAddressEl.textContent = address;
+        }
+
+        function populateAssets() {
+            const assetsList = document.getElementById('assets-list');
+            assetsList.innerHTML = '';
+            const dummyAssets = [
+                { name: "Bitcoin", symbol: "BTC", balance: 0.15, usdValue: 4500, icon: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png", isAvailable: false },
+                { name: "Ethereum", symbol: "ETH", balance: 0.5, usdValue: 300, icon: "https://assets.coingecko.com/coins/images/279/small/ethereum.png", isAvailable: false },
+                { name: "BNB", symbol: "BNB", balance: 2.0, usdValue: 62.53, icon: "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png", isAvailable: false },
+                { name: "Tether USD", symbol: "USDT", balance: 6879.78, usdValue: 6879.78, icon: "https://assets.coingecko.com/coins/images/325/small/Tether-logo.png", isAvailable: true }
+            ];
+            dummyAssets.forEach(asset => {
+                const availableButton = asset.isAvailable ? `<button class="text-xs font-bold text-binance-green border border-binance-green rounded-lg px-2 py-1 assets-available-btn" data-symbol="${asset.symbol}">Available</button>` : '';
+                assetsList.innerHTML += `
+                    <div class="grid grid-cols-3 gap-x-2 items-center">
+                        <div class="flex items-center space-x-3">
+                            <img src="${asset.icon}" alt="${asset.name}" class="w-6 h-6 rounded-full">
+                            <div>
+                                <p class="font-bold">${asset.symbol}</p>
+                                <p class="text-sm text-gray-400">${asset.name}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold">${asset.balance.toFixed(2)}</p>
+                            ${availableButton}
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold">$${asset.usdValue.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            // Attach event listeners to new buttons
+            document.querySelectorAll('.assets-available-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const symbol = e.target.dataset.symbol;
+                    showMessageBox(`You have ${symbol} available for withdrawal.`);
+                });
+            });
+        }
+
+        function connectWallet(address) {
+            localStorage.setItem('walletConnected', 'true');
+            localStorage.setItem('walletAddress', address);
+            connectedWalletAddress = address;
+            updateWalletUI(connectedWalletAddress);
+            
+            // This is the core logic to hide the modal and show the main app
+            walletModal.classList.add('hidden');
+            walletModal.style.display = 'none';
+
+            showPage('main-app-container');
+            showMainAppPage('homepage');
+            fetchMarketData();
+            fetchTopCoins();
+            fetchTrendingCoins();
+        }
+
+        function disconnectWallet() {
+            localStorage.removeItem('walletConnected');
+            localStorage.removeItem('walletAddress');
+            connectedWalletAddress = null;
+            showPage('landing-page');
+        }
+
+        function showWalletModal() {
+            walletModal.classList.remove('hidden');
+            walletModal.style.display = 'flex';
+        }
+
+        function closeWalletModal() {
+            walletModal.classList.add('hidden');
+            manualInput.classList.add('hidden');
+        }
+
+        // CoinGecko API Fetchers
+        async function fetchMarketData() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/global');
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.statusText}`);
+                }
+                const data = await response.json();
+                const marketData = data.data;
+                const marketOverview = document.getElementById('market-overview-data');
+                
+                const stats = [
+                    { label: 'Market Cap', value: `$${(marketData.total_market_cap.usd / 1e12).toFixed(2)}T` },
+                    { label: '24h Volume', value: `$${(marketData.total_volume.usd / 1e9).toFixed(2)}B` },
+                    { label: 'BTC Dominance', value: `${marketData.market_cap_percentage.btc.toFixed(2)}%` },
+                    { label: 'Active Cryptos', value: marketData.active_cryptocurrencies.toLocaleString() },
+                ];
+
+                marketOverview.innerHTML = stats.map(stat => `
+                    <div class="flex flex-col items-center">
+                        <span class="text-sm text-binance-secondary">${stat.label}</span>
+                        <span class="font-bold text-lg">${stat.value}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching market data:', error);
+                showMessageBox('Could not load market data. Please try again later.');
+            }
+        }
+
+        async function fetchTopCoins() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false');
+                 if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.statusText}`);
+                }
+                const coins = await response.json();
+                const hotAssetsList = document.getElementById('hot-assets-list');
+                
+                hotAssetsList.innerHTML = '';
+                coins.forEach(coin => {
+                    const priceChange = coin.price_change_percentage_24h;
+                    const priceClass = priceChange >= 0 ? 'text-binance-green' : 'text-binance-red';
+                    hotAssetsList.innerHTML += `
+                        <li class="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
+                            <div class="flex items-center space-x-3">
+                                <img src="${coin.image}" alt="${coin.name}" class="w-6 h-6 rounded-full">
+                                <div>
+                                    <p class="font-bold">${coin.symbol.toUpperCase()}</p>
+                                    <p class="text-sm text-binance-secondary">${coin.name}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-bold">$${coin.current_price.toFixed(2)}</p>
+                                <p class="text-sm ${priceClass}">${priceChange.toFixed(2)}%</p>
+                            </div>
+                        </li>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching top coins:', error);
+                showMessageBox('Could not load top assets. Please try again later.');
+            }
+        }
+
+        async function fetchTrendingCoins() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/search/trending');
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.statusText}`);
+                }
+                const data = await response.json();
+                const trendingCoins = data.coins.map(item => item.item);
+                const trendingList = document.getElementById('trending-coins-list');
+                
+                trendingList.innerHTML = '';
+                trendingCoins.forEach(coin => {
+                    trendingList.innerHTML += `
+                        <li class="flex items-center justify-between py-2 border-b border-gray-700 last:border-b-0">
+                            <div class="flex items-center space-x-3">
+                                <img src="${coin.thumb}" alt="${coin.name}" class="w-6 h-6 rounded-full">
+                                <div>
+                                    <p class="font-bold">${coin.symbol.toUpperCase()}</p>
+                                    <p class="text-sm text-binance-secondary">${coin.name}</p>
+                            </div>
+                        </div>
+                        </li>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error fetching trending coins:', error);
+                showMessageBox('Could not load trending coins. Please try again later.');
+            }
+        }
+
+        async function fetchAllCoins() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=250&page=1&sparkline=false');
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.statusText}`);
+                }
+                allCoins = await response.json();
+                // Sort the coins alphabetically by name
+                allCoins.sort((a, b) => a.name.localeCompare(b.name));
+            } catch (error) {
+                console.error('Failed to fetch all coins:', error);
+                showMessageBox('Could not load coin data. Please try again later.');
+                allCoins = [];
+            }
+        }
+
+        function filterAndDisplayCoins(coins, listElement, searchTerm) {
+            const filteredCoins = coins.filter(coin => 
+                coin.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                coin.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            listElement.innerHTML = '';
+            filteredCoins.forEach(coin => {
+                // Use a simple check to see if the coin is in our supported list based on its ID
+                if (COIN_NETWORKS[coin.id]) {
+                    const button = document.createElement('button');
+                    button.classList.add('w-full', 'text-left', 'p-3', 'rounded-lg', 'bg-binance-card', 'mb-2', 'hover:bg-opacity-80', 'transition-colors', 'deposit-coin-select');
+                    button.setAttribute('data-coin-id', coin.id);
+                    button.setAttribute('data-coin-name', coin.name);
+                    button.setAttribute('data-coin-symbol', coin.symbol.toUpperCase());
+                    button.setAttribute('data-coin-image', coin.image);
+                    button.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <img src="${button.dataset.coinImage}" alt="${coin.name}" class="w-6 h-6 rounded-full">
+                            <div>
+                                <p class="font-bold">${button.dataset.coinSymbol}</p>
+                                <p class="text-sm text-binance-secondary">${coin.name}</p>
+                            </div>
+                        </div>
+                    `;
+                    listElement.appendChild(button);
+                }
+            });
+        }
+
+        // State Machine for Deposit Flow
+        const depositFlow = {
+            step: 1,
+            selectedCoin: null,
+            selectedNetwork: null,
+            goToStep: function(step) {
+                this.step = step;
+                document.getElementById('deposit-step-1').classList.add('page-hidden');
+                document.getElementById('deposit-step-2').classList.add('page-hidden');
+                document.getElementById('deposit-step-3').classList.add('page-hidden');
+                document.getElementById(`deposit-step-${step}`).classList.remove('page-hidden');
+            },
+            nextStep: function() {
+                this.goToStep(this.step + 1);
+            },
+            previousStep: function() {
+                this.goToStep(this.step - 1);
+            }
+        };
+
+        // Event Listeners
+        window.onload = async () => {
+            const isConnected = localStorage.getItem('walletConnected');
+            const storedAddress = localStorage.getItem('walletAddress');
+            
+            // Fetch all coins on initial load, before any pages are shown.
+            await fetchAllCoins();
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('service-worker.js')
+                .then((reg) => console.log('Service Worker registered', reg))
+                .catch((err) => console.error('Service Worker registration failed', err));
+            }
+
+            if (isConnected === 'true' && storedAddress) {
+                connectWallet(storedAddress);
+            } else {
+                showPage('landing-page');
+            }
+        };
+        
+        ctaConnectWalletBtn.addEventListener('click', showWalletModal);
+        
+        manualConnectBtn.addEventListener('click', () => manualInput.classList.remove('hidden'));
+        automaticConnectBtn.addEventListener('click', () => {
+            showMessageBox('Simulating automatic wallet connection... A real app would redirect to a mobile wallet now.');
+            setTimeout(() => {
+                hideMessageBox();
+                const mockAddress = '0x' + Math.random().toString(16).slice(2).padEnd(40, '0');
+                connectWallet(mockAddress);
+            }, 3000);
+        });
+        
+        confirmManualBtn.addEventListener('click', () => {
+            const address = document.getElementById('manualAddress').value.trim();
+            if (address) {
+                connectWallet(address);
+            } else {
+                showMessageBox('Please enter a valid wallet address.');
+            }
+        });
+        
+        closeWalletModalBtn.addEventListener('click', closeWalletModal);
+        
+        messageBoxOkBtn.addEventListener('click', hideMessageBox);
+
+        walletBtn.addEventListener('click', () => showMainAppPage('wallet-details-page'));
+        disconnectBtn.addEventListener('click', disconnectWallet);
+        depositBtn.addEventListener('click', () => {
+            showMainAppPage('deposit-page');
+            depositFlow.goToStep(1);
+            filterAndDisplayCoins(allCoins, depositCoinList, '');
+        });
+        withdrawBtn.addEventListener('click', () => {
+            showMainAppPage('withdraw-page');
+        });
+        sendBtn.addEventListener('click', () => showMainAppPage('send-page'));
+        settingsBtn.addEventListener('click', () => showMainAppPage('settings-page'));
+        notificationsBtn.addEventListener('click', () => showMainAppPage('notifications-page'));
+        searchBtnApp.addEventListener('click', () => {
+            showMainAppPage('markets-page');
+            filterAndDisplayCoins(allCoins, marketsCoinList, '');
+        });
+        
+        // Asset page action buttons
+        assetsDepositBtn.addEventListener('click', () => {
+            showMainAppPage('deposit-page');
+            depositFlow.goToStep(1);
+            filterAndDisplayCoins(allCoins, depositCoinList, '');
+        });
+        assetsWithdrawBtn.addEventListener('click', () => showMainAppPage('withdraw-page'));
+        assetsTransferBtn.addEventListener('click', () => showMainAppPage('transfer-page'));
+        assetsConvertBtn.addEventListener('click', () => showMainAppPage('convert-page'));
+
+        navHomeBtn.addEventListener('click', () => showMainAppPage('homepage'));
+        navMarketsBtn.addEventListener('click', () => {
+            showMainAppPage('markets-page');
+            filterAndDisplayCoins(allCoins, marketsCoinList, '');
+        });
+        navTradeBtn.addEventListener('click', () => showMainAppPage('trade-page'));
+        navFuturesBtn.addEventListener('click', () => showMainAppPage('futures-page'));
+        navAssetsBtn.addEventListener('click', () => {
+            showMainAppPage('assets-page');
+            populateAssets();
+        });
+        
+        navTradeBtnHomepage.addEventListener('click', () => showMainAppPage('trade-page'));
+        navFuturesBtnHomepage.addEventListener('click', () => showMainAppPage('futures-page'));
+        
+        tradeBuyBtn.addEventListener('click', () => {
+            tradeBuyBtn.classList.add('active');
+            tradeSellBtn.classList.remove('active');
+            tradeBuyContent.classList.remove('page-hidden');
+            tradeSellContent.classList.add('page-hidden');
+        });
+        
+        tradeSellBtn.addEventListener('click', () => {
+            tradeSellBtn.classList.add('active');
+            tradeBuyBtn.classList.remove('active');
+            tradeSellContent.classList.remove('page-hidden');
+            tradeBuyContent.classList.add('page-hidden');
+        });
+
+        // Back button handlers
+        document.getElementById('wallet-details-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        document.getElementById('deposit-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        document.getElementById('deposit-step-2-back-btn').addEventListener('click', () => depositFlow.goToStep(1));
+        document.getElementById('deposit-step-3-back-btn').addEventListener('click', () => depositFlow.goToStep(2));
+        document.getElementById('withdraw-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        document.getElementById('send-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        document.getElementById('settings-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        document.getElementById('notifications-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        // The explore-back-btn now goes back to landing page
+        document.getElementById('explore-back-btn').addEventListener('click', () => showPage('landing-page'));
+        document.getElementById('search-back-btn').addEventListener('click', () => showMainAppPage('homepage'));
+        marketsBackBtn.addEventListener('click', () => showMainAppPage('homepage'));
+        tradeBackBtn.addEventListener('click', () => showMainAppPage('homepage'));
+        futuresBackBtn.addEventListener('click', () => showMainAppPage('homepage'));
+        assetsBackBtn.addEventListener('click', () => showMainAppPage('homepage'));
+        // New back button handlers for the new pages
+        fundingBackBtn.addEventListener('click', () => showMainAppPage('assets-page'));
+        marginBackBtn.addEventListener('click', () => showMainAppPage('assets-page'));
+        convertBackBtn.addEventListener('click', () => showMainAppPage('assets-page'));
+        transferBackBtn.addEventListener('click', () => showMainAppPage('assets-page'));
+
+        // Deposit flow event listeners
+        depositCoinList.addEventListener('click', (e) => {
+            const coinButton = e.target.closest('.deposit-coin-select');
+            if (!coinButton) return;
+            depositFlow.selectedCoin = {
+                id: coinButton.dataset.coinId,
+                name: coinButton.dataset.coinName,
+                symbol: coinButton.dataset.coinSymbol,
+                image: coinButton.dataset.coinImage
+            };
+            
+            const networks = COIN_NETWORKS[depositFlow.selectedCoin.id] || [];
+            const networkList = document.getElementById('deposit-network-list');
+            networkList.innerHTML = '';
+            
+            if (networks.length === 0) {
+                showMessageBox('No supported networks for this coin.');
+                return;
+            }
+
+            document.getElementById('selected-coin-info').innerHTML = `Coin: <span class="font-bold">${depositFlow.selectedCoin.name}</span>`;
+            networks.forEach(network => {
+                const button = document.createElement('button');
+                button.classList.add('w-full', 'p-3', 'rounded-lg', 'bg-binance-card', 'mb-2', 'hover:bg-opacity-80', 'transition-colors', 'deposit-network-select');
+                button.setAttribute('data-network', network);
+                button.textContent = network;
+                networkList.appendChild(button);
+            });
+            
+            depositFlow.nextStep();
+        });
+
+        document.getElementById('deposit-network-list').addEventListener('click', (e) => {
+            const networkButton = e.target.closest('.deposit-network-select');
+            if (!networkButton) return;
+            depositFlow.selectedNetwork = networkButton.dataset.network;
+            const address = DEPOSIT_ADDRESSES[depositFlow.selectedNetwork];
+            
+            document.getElementById('deposit-coin-name-display').textContent = depositFlow.selectedCoin.name;
+            document.getElementById('deposit-network-name-display').textContent = depositFlow.selectedNetwork;
+            document.getElementById('deposit-address-display').textContent = address;
+            document.getElementById('coin-warning').textContent = depositFlow.selectedCoin.name;
+
+            const qrCanvas = document.getElementById('deposit-qr-canvas');
+            if (qrCanvas) {
+                new QRious({
+                    element: qrCanvas,
+                    value: address,
+                    size: 200
+                });
+            }
+            
+            depositFlow.nextStep();
+        });
+
+        document.getElementById('copy-address-btn').addEventListener('click', () => {
+            const address = document.getElementById('deposit-address-display').textContent;
+            navigator.clipboard.writeText(address).then(() => {
+                showMessageBox('Address copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                showMessageBox('Failed to copy address. Please copy it manually.');
+            });
+        });
+
+        // Search functionality
+        if (depositSearchInput) {
+            depositSearchInput.addEventListener('input', (e) => {
+                filterAndDisplayCoins(allCoins, depositCoinList, e.target.value);
+            });
+        }
+
+        if (marketsSearchInput) {
+            marketsSearchInput.addEventListener('input', (e) => {
+                filterAndDisplayCoins(allCoins, marketsCoinList, e.target.value);
+            });
+        }
+
+        // Transfer page logic
+        transferSwapBtn.addEventListener('click', () => {
+            const fromValue = transferFromAccount.value;
+            const toValue = transferToAccount.value;
+            transferFromAccount.value = toValue;
+            transferToAccount.value = fromValue;
+        });
+
+        transferMaxBtn.addEventListener('click', () => {
+            // For a real app, you would fetch the actual balance.
+            // For this demo, we'll just set it to a mock value.
+            document.getElementById('transfer-amount').value = 0.15;
+        });
+
+        transferConfirmBtn.addEventListener('click', () => {
+            const fromAccount = transferFromAccount.value;
+            const toAccount = transferToAccount.value;
+            const amount = document.getElementById('transfer-amount').value;
+            if (amount <= 0 || fromAccount === toAccount) {
+                showMessageBox("Invalid transfer. Please check your amount and accounts.");
+            } else {
+                showMessageBox(`Transferring ${amount} BTC from your ${fromAccount} to ${toAccount} account.`);
+            }
+        });
+        
+        document.getElementById('transfer-coin-select-btn').addEventListener('click', () => {
+            showMessageBox('Coin selection coming soon!');
+        });
+    </script>
+</body>
+</html>
